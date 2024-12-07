@@ -18,6 +18,7 @@ class deviceInfoModel(models.Model):
         ('controller', '控制器'),
         ('terminal', '终端'),
     ], default='router')
+    deviceName = models.CharField(max_length=100, blank=True, null=True)
 
 class portInfoModel(models.Model):
     id = models.IntegerField(primary_key=True)
