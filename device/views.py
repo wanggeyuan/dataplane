@@ -110,7 +110,8 @@ def deviceInfo(request):
                 'verifySpeed': info.verifySpeed,
                 'avgDelay': info.avgDelay,
                 'verifyMode': info.verifyMode,
-                'tableUsage': info.tableUsage
+                'tableUsage': info.tableUsage,
+                'deviceType': info.deviceType  # 添加设备类型
             })
         return JsonResponse(response, safe=False)
     except Exception as e:
