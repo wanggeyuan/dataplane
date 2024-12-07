@@ -28,4 +28,4 @@ class portInfoModel(models.Model):
     arriveSpeed = models.IntegerField(default=0)
     rx = models.IntegerField(default=0)
     tx = models.IntegerField(default=0)
-    device = models.ForeignKey(deviceInfoModel, on_delete=models.CASCADE, null=True)
+    deviceName = models.CharField(max_length=100, blank=True, null=True)

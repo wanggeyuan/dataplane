@@ -33,25 +33,51 @@ def netInfo(request):
 
 def portInfo(request):
     try:
-        infos = portInfoModel.objects.all()
-    except Exception as e:
-        return HttpResponse(type(e).__name__ + " " + str(e), status=500)
-
-    response = {}
-    for info in infos:
-        response[info.id] = {
-            'ipAddress': info.ipAddress,
-            'mask': info.mask,
-            'arriveSpeed': info.arriveSpeed,
-            'rx': info.rx,
-            'tx': info.tx,
+        # 获取设备名称参数
+        device_name = request.GET.get('deviceName')
+        
+        if device_name:
+            # 如果提供了设备名称,只返回该设备的端口信息
+            infos = portInfoModel.objects.filter(deviceName=device_name)
+        else:
+            # 否则返回所有端口信息
+            infos = portInfoModel.objects.all()
+            
+        if not infos.exists():
+            return JsonResponse({
+                'code': 404,
+                'message': f'未找到设备 {device_name} 的端口信息' if device_name else '未找到任何端口信息',
+                'data': []
+            })
+            
+        # 构建响应数据
+        port_list = []
+        for info in infos:
+            port_list.append({
+                'ipAddress': info.ipAddress,
+                'mask': info.mask,
+                'arriveSpeed': info.arriveSpeed,
+                'rx': info.rx,
+                'tx': info.tx,
+                'portName': info.portName,
+                'deviceName': info.deviceName
+            })
+            
+        response = {
+            'code': 200,
+            'message': 'success',
+            'data': port_list
         }
-    # response = [{'rx': 10690, 'tx': 2},
-    #             {'rx': 2, 'tx': 10690},
-    #             {'rx': 0, 'tx': 0},
-    #             {'rx': 0, 'tx': 0},
-    #            ]
-    return JsonResponse(response)
+        
+        return JsonResponse(response)
+        
+    except Exception as e:
+        return JsonResponse({
+            'code': 500,
+            'message': f'获取端口信息失败: {str(e)}',
+            'data': []
+        })
+
 
 def verifySwitch(request):
     payload = json.loads(request.body)
