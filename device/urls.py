@@ -21,4 +21,5 @@ urlpatterns = [
     path("log", log),
     path("vpn", vpn),
     path("addDevice", addDevice),
+    path("addPortInfo", addPortInfo),
 ]

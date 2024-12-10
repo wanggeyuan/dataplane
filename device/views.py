@@ -77,6 +77,55 @@ def portInfo(request):
             'message': f'获取端口信息失败: {str(e)}',
             'data': []
         })
+    
+def addPortInfo(request):
+    try:
+        # 获取POST请求中的数据
+        data = json.loads(request.body)
+        
+        # 验证必要字段
+        required_fields = ['ipAddress', 'mask', 'arriveSpeed', 'rx', 'tx', 'portName', 'deviceName']
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({
+                    'code': 400,
+                    'message': f'缺少必要字段: {field}',
+                    'data': []
+                })
+        
+        # 创建新的端口信息记录
+        new_port = portInfoModel(
+            ipAddress=data['ipAddress'],
+            mask=data['mask'],
+            arriveSpeed=data['arriveSpeed'],
+            rx=data['rx'],
+            tx=data['tx'],
+            portName=data['portName'],
+            deviceName=data['deviceName']
+        )
+        new_port.save()
+        
+        # 返回成功响应
+        return JsonResponse({
+            'code': 200,
+            'message': '端口信息添加成功',
+            'data': {
+                'ipAddress': new_port.ipAddress,
+                'mask': new_port.mask,
+                'arriveSpeed': new_port.arriveSpeed,
+                'rx': new_port.rx,
+                'tx': new_port.tx,
+                'portName': new_port.portName,
+                'deviceName': new_port.deviceName
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'code': 500,
+            'message': f'添加端口信息失败: {str(e)}',
+            'data': []
+        })
 
 
 def verifySwitch(request):
