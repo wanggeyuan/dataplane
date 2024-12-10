@@ -193,6 +193,45 @@ def addDevice(request):
             'success': False,
             'message': f'添加设备失败: {str(e)}'
         }, status=500)
+    
+def deleteDevice(request):
+    try:
+        # 解析请求数据
+        print("开始解析请求数据...")
+        payload = json.loads(request.body)
+        device_name = payload.get('deviceName')
+        print(f"请求删除设备: {device_name}")
+        
+        # 查找并删除设备
+        print("开始查找设备...")
+        try:
+            device = deviceInfoModel.objects.get(deviceName=device_name)
+            print(f"找到设备: {device.deviceName}")
+            
+            # 删除设备
+            device.delete()
+            print(f"设备 {device_name} 删除成功")
+            
+            # 返回成功响应
+            response_data = {
+                'success': True,
+                'message': f'设备 {device_name} 删除成功'
+            }
+            return JsonResponse(response_data)
+            
+        except deviceInfoModel.DoesNotExist:
+            print(f"设备 {device_name} 不存在")
+            return JsonResponse({
+                'success': False,
+                'message': f'设备 {device_name} 不存在'
+            }, status=404)
+            
+    except Exception as e:
+        print(f"删除设备时发生错误: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': f'删除设备失败: {str(e)}'
+        }, status=500)
 
 def routeAdd(request):
     response = {'routeAdd success'}
