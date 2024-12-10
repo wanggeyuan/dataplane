@@ -94,6 +94,56 @@ def verifySwitch(request):
             return JsonResponse({'error': 'Device not found'}, status=404)
     else:
         return JsonResponse({'error': 'ID not provided'}, status=400)
+    
+def addDevice(request):
+    try:
+        # 解析请求数据
+        print("开始解析请求数据...")
+        payload = json.loads(request.body)
+        print(f"请求数据: {payload}")
+        
+        # 创建新设备
+        print("开始创建新设备...")
+        new_device = deviceInfoModel(
+            deviceType=payload.get('deviceType'),
+            deviceName=payload.get('deviceName'),
+            throughput=payload.get('throughput', 0),
+            verifySpeed=payload.get('verifySpeed', 0),
+            avgDelay=payload.get('avgDelay', 0.0),
+            verifyMode=payload.get('verifyMode', False),
+            tableUsage=payload.get('tableUsage', 0.0)
+        )
+        print(f"新设备对象创建完成: {new_device.__dict__}")
+        
+        # 保存到数据库
+        print("正在保存到数据库...")
+        new_device.save()
+        print(f"设备保存成功,ID为: {new_device.id}")
+        
+        # 返回成功响应
+        response_data = {
+            'success': True,
+            'message': '设备添加成功',
+            'data': {
+                'id': new_device.id,
+                'deviceType': new_device.deviceType,
+                'deviceName': new_device.deviceName,
+                'throughput': new_device.throughput,
+                'verifySpeed': new_device.verifySpeed,
+                'avgDelay': new_device.avgDelay,
+                'verifyMode': new_device.verifyMode,
+                'tableUsage': new_device.tableUsage
+            }
+        }
+        print(f"返回响应: {response_data}")
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        print(f"添加设备时发生错误: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': f'添加设备失败: {str(e)}'
+        }, status=500)
 
 def routeAdd(request):
     response = {'routeAdd success'}
