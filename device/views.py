@@ -151,11 +151,22 @@ def addDevice(request):
         payload = json.loads(request.body)
         print(f"请求数据: {payload}")
         
+        # 检查设备名是否已存在
+        device_name = payload.get('deviceName')
+        print(f"检查设备名 '{device_name}' 是否已存在...")
+        
+        if deviceInfoModel.objects.filter(deviceName=device_name).exists():
+            print(f"设备名 '{device_name}' 已存在")
+            return JsonResponse({
+                'success': False,
+                'message': f"设备名 '{device_name}' 已存在，请使用其他设备名"
+            })
+        
         # 创建新设备
         print("开始创建新设备...")
         new_device = deviceInfoModel(
             deviceType=payload.get('deviceType'),
-            deviceName=payload.get('deviceName'),
+            deviceName=device_name,
             throughput=payload.get('throughput', 0),
             verifySpeed=payload.get('verifySpeed', 0),
             avgDelay=payload.get('avgDelay', 0.0),
