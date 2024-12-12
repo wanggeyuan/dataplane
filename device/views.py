@@ -4,6 +4,7 @@ from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 # import cmdCPU
 from device.models import *
+from django.db import transaction
 
 
 def index(request):
@@ -207,41 +208,74 @@ def addDevice(request):
     
 def deleteDevice(request):
     try:
-        # 解析请求数据
         print("开始解析请求数据...")
         payload = json.loads(request.body)
         device_name = payload.get('deviceName')
         print(f"请求删除设备: {device_name}")
         
-        # 查找并删除设备
-        print("开始查找设备...")
-        try:
-            device = deviceInfoModel.objects.get(deviceName=device_name)
-            print(f"找到设备: {device.deviceName}")
-            
-            # 删除设备
-            device.delete()
-            print(f"设备 {device_name} 删除成功")
-            
-            # 返回成功响应
-            response_data = {
-                'success': True,
-                'message': f'设备 {device_name} 删除成功'
-            }
-            return JsonResponse(response_data)
-            
-        except deviceInfoModel.DoesNotExist:
-            print(f"设备 {device_name} 不存在")
-            return JsonResponse({
-                'success': False,
-                'message': f'设备 {device_name} 不存在'
-            }, status=404)
+        # 使用事务确保原子性
+        with transaction.atomic():
+            try:
+                # 先删除设备
+                device = deviceInfoModel.objects.get(deviceName=device_name)
+                device.delete()
+                print(f"设备 {device_name} 删除成功")
+                
+                # 返回成功响应
+                return JsonResponse({
+                    'data': {
+                        'success': True,
+                        'message': f'设备 {device_name} 删除成功'
+                    }
+                })
+                
+            except deviceInfoModel.DoesNotExist:
+                print(f"设备 {device_name} 不存在")
+                return JsonResponse({
+                    'data': {
+                        'success': False,
+                        'message': f'设备 {device_name} 不存在'
+                    }
+                }, status=404)
             
     except Exception as e:
         print(f"删除设备时发生错误: {str(e)}")
         return JsonResponse({
-            'success': False,
-            'message': f'删除设备失败: {str(e)}'
+            'data': {
+                'success': False,
+                'message': f'删除设备失败: {str(e)}'
+            }
+        }, status=500)
+
+def deleteDevicePorts(request):
+    try:
+        payload = json.loads(request.body)
+        device_name = payload.get('deviceName')
+        
+        # 删除设备相关的所有端口
+        ports = portInfoModel.objects.filter(deviceName=device_name)
+        if ports.exists():
+            ports.delete()
+            return JsonResponse({
+                'data': {
+                    'success': True,
+                    'message': f'设备 {device_name} 的端口信息删除成功'
+                }
+            })
+        else:
+            return JsonResponse({
+                'data': {
+                    'success': True,
+                    'message': f'设备 {device_name} 没有相关的端口信息'
+                }
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'data': {
+                'success': False,
+                'message': f'删除端口信息失败: {str(e)}'
+            }
         }, status=500)
 
 def routeAdd(request):
