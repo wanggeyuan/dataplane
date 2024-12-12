@@ -277,6 +277,43 @@ def deleteDevicePorts(request):
                 'message': f'删除端口信息失败: {str(e)}'
             }
         }, status=500)
+    
+def deletePort(request):
+    try:
+        payload = json.loads(request.body)
+        device_name = payload.get('deviceName')
+        port_name = payload.get('portName')
+        
+        # 查找并删除指定的端口
+        try:
+            port = portInfoModel.objects.get(
+                deviceName=device_name,
+                portName=port_name
+            )
+            port.delete()
+            
+            return JsonResponse({
+                'data': {
+                    'success': True,
+                    'message': f'端口 {port_name} 删除成功'
+                }
+            })
+            
+        except portInfoModel.DoesNotExist:
+            return JsonResponse({
+                'data': {
+                    'success': False,
+                    'message': f'端口不存在'
+                }
+            }, status=404)
+            
+    except Exception as e:
+        return JsonResponse({
+            'data': {
+                'success': False,
+                'message': f'删除端口失败: {str(e)}'
+            }
+        }, status=500)
 
 def routeAdd(request):
     response = {'routeAdd success'}

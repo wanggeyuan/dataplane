@@ -24,4 +24,5 @@ urlpatterns = [
     path("addPortInfo", addPortInfo),
     path("deleteDevice", deleteDevice),
     path('deleteDevicePorts', deleteDevicePorts, name='deleteDevicePorts'),
+    path('deletePort', deletePort, name='deletePort'),
 ]
