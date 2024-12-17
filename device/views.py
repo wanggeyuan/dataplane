@@ -1,11 +1,18 @@
 import json
+import time
 
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 # import cmdCPU
 from device.models import *
 from django.db import transaction
+from device.config import CURRENT_DEVICE_NAME
+from threading import Timer
 
+# 在文件顶部添加一个全局变量来存储上一次的路由表
+last_printed_routes = None
+last_routes = None
+print_timer = None
 
 def index(request):
     return HttpResponse("Hello, world. You're at the device index.")
@@ -375,16 +382,9 @@ def vpn(request):
 
 
 def receiveRouteTable(request):
-    # 处理OPTIONS请求
-    if request.method == 'OPTIONS':
-        response = HttpResponse()
-        response['Access-Control-Allow-Origin'] = '*'
-        response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-        response['Access-Control-Allow-Headers'] = 'Content-Type'
-        return response
-
     try:
-        print("\n=== 开始接收路由表信息 ===")
+        global last_routes, print_timer
+        print(f"当前设备名称: {CURRENT_DEVICE_NAME}")
         payload = json.loads(request.body)
         route_table = payload.get('routeTable')
 
@@ -394,19 +394,42 @@ def receiveRouteTable(request):
                 'message': '缺少路由表数据'
             }, status=400)
             
-        # 打印路由表信息
-        print("路由表信息:")
-        print("=" * 80)
-        for route in route_table:
-            print(f"设备名称: {route['deviceName']}")
-            print(f"入接口: {route['in_interface']}")
-            print(f"出接口: {route['out_interface']}")
-            print(f"源地址: {route['source_network']}")
-            print(f"目标: {route['target']}")
-            print(f"网关: {route['gateway']}")
-            print(f"度量值: {route['metric']}")
-            print(f"表: {route['table']}")
-            print("-" * 50)
+        # 过滤当前设备的路由表内容
+        device_routes = [route for route in route_table if route['deviceName'] == CURRENT_DEVICE_NAME]
+        
+        # 构建格式化的路由表数据
+        formatted_routes = {
+            "设备名称": CURRENT_DEVICE_NAME,
+            "根据路径转换后的路由表": [
+                {
+                    "入接口": route['in_interface'],
+                    "出接口": route['out_interface'],
+                    "源地址": route['source_network'],
+                    "目标": route['target'],
+                    "网关": route['gateway'],
+                    "度量值": route['metric'],
+                    "表": route['table'],
+                    "说明": f"到达终端{route['target'][-1]}的路由：通过{route['deviceName']}转发到终端{route['target'][-1]}"
+                }
+                for route in device_routes
+            ]
+        }
+
+        # 保存当前路由表
+        last_routes = formatted_routes
+
+        # 如果有定时器在运行，取消它
+        if print_timer:
+            print_timer.cancel()
+
+        # 设置新的定时器，0.5秒后打印
+        def delayed_print():
+            if last_routes:
+                print("\n最终路由表内容:")
+                print(json.dumps(last_routes, ensure_ascii=False, indent=2))
+
+        print_timer = Timer(1.5, delayed_print)
+        print_timer.start()
 
         return JsonResponse({
             'code': 200,
