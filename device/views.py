@@ -372,3 +372,50 @@ def log(request):
 
 def vpn(request):
     return HttpResponse("Hello, world. You're at the device vpn.")
+
+
+def receiveRouteTable(request):
+    # 处理OPTIONS请求
+    if request.method == 'OPTIONS':
+        response = HttpResponse()
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
+    try:
+        print("\n=== 开始接收路由表信息 ===")
+        payload = json.loads(request.body)
+        route_table = payload.get('routeTable')
+
+        if route_table is None:
+            return JsonResponse({
+                'code': 400,
+                'message': '缺少路由表数据'
+            }, status=400)
+            
+        # 打印路由表信息
+        print("路由表信息:")
+        print("=" * 80)
+        for route in route_table:
+            print(f"设备名称: {route['deviceName']}")
+            print(f"入接口: {route['in_interface']}")
+            print(f"出接口: {route['out_interface']}")
+            print(f"源地址: {route['source_network']}")
+            print(f"目标: {route['target']}")
+            print(f"网关: {route['gateway']}")
+            print(f"度量值: {route['metric']}")
+            print(f"表: {route['table']}")
+            print("-" * 50)
+
+        return JsonResponse({
+            'code': 200,
+            'message': '路由表信息接收并打印成功'
+        })
+
+    except Exception as e:
+        print(f"\n处理路由表时发生错误: {str(e)}")
+        return JsonResponse({
+            'code': 500,
+            'message': f'接收路由表信息失败: {str(e)}'
+        }, status=500)

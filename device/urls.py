@@ -25,4 +25,5 @@ urlpatterns = [
     path("deleteDevice", deleteDevice),
     path('deleteDevicePorts', deleteDevicePorts, name='deleteDevicePorts'),
     path('deletePort', deletePort, name='deletePort'),
+    path('receiveRouteTable', receiveRouteTable, name='receiveRouteTable'),
 ]
