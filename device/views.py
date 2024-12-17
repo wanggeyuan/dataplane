@@ -14,6 +14,14 @@ last_printed_routes = None
 last_routes = None
 print_timer = None
 
+# 在文件开头添加接口映射关系
+INTERFACE_MAPPING = {
+    'v6_1': 'eth5',
+    'v6_2': 'eth1',
+    'v6_3': 'eth3',
+    'v6_4': 'eth2'
+}
+
 def index(request):
     return HttpResponse("Hello, world. You're at the device index.")
 
@@ -381,6 +389,54 @@ def vpn(request):
     return HttpResponse("Hello, world. You're at the device vpn.")
 
 
+def generate_openwrt_commands(routes):
+    print(f'routes: {routes}')
+    """生成OpenWrt命令"""
+    commands = []
+    processed_tables = set()
+    
+    for route in routes["根据路径转换后的路由表"]:
+        try:
+            source_network = route["源地址"]
+            target_network = route["目标"]
+            table_name = f"table_from_{source_network.split(':')[1].split('/')[0]}"
+            
+            # 检查接口映射是否存在
+            if route['入接口'] not in INTERFACE_MAPPING:
+                print(f"跳过路由: 接口 {route['入接口']} 未配置映射关系")
+                continue
+            if route['出接口'] not in INTERFACE_MAPPING:
+                print(f"跳过路由: 接口 {route['出接口']} 未配置映射关系")
+                continue
+            
+            # 如果是新的路由表，添加创建路由表的命令
+            if table_name not in processed_tables:
+                commands.extend([
+                    f"# 创建路由表 {table_name}",
+                    f"cat /etc/iproute2/rt_tables | grep {table_name} || echo \"100 {table_name}\" >> /etc/iproute2/rt_tables",
+                    "",
+                    f"# 添加规则到 {table_name}",
+                    f"ip -6 rule add from {source_network} iif {INTERFACE_MAPPING[route['入接口']]} lookup {table_name} prio 32764",
+                    ""
+                ])
+                processed_tables.add(table_name)
+            
+            # 添加具体路由命令
+            commands.append(f"# 添加从 {source_network} 到 {target_network} 的路由")
+            commands.append(
+                f"ip -6 route add {target_network} via {route['网关']} dev {INTERFACE_MAPPING[route['出接口']]} table {table_name}"
+            )
+            commands.append("")
+            
+        except KeyError as e:
+            print(f"错误: 处理路由时发生错误，缺少必要的字段: {e}")
+            continue
+        except Exception as e:
+            print(f"错误: 处理路由时发生未知错误: {e}")
+            continue
+    
+    return "\n".join(commands)
+
 def receiveRouteTable(request):
     try:
         global last_routes, print_timer
@@ -422,11 +478,13 @@ def receiveRouteTable(request):
         if print_timer:
             print_timer.cancel()
 
-        # 设置新的定时器，0.5秒后打印
+        # 设置新的定时器，2秒后打印
         def delayed_print():
             if last_routes:
                 print("\n最终路由表内容:")
                 print(json.dumps(last_routes, ensure_ascii=False, indent=2))
+                print("\nOpenWrt命令:")
+                print(generate_openwrt_commands(last_routes))
 
         print_timer = Timer(1.5, delayed_print)
         print_timer.start()
