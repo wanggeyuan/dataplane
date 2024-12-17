@@ -1,5 +1,5 @@
 # 数据层
 ## 启动方式
 ```shell
-runserver manage.py 8001 S1
+python manage.py runserver 0.0.0.0:8001 S1
 ```
