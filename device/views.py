@@ -17,7 +17,6 @@ print_timer = None
 # 在文件开头添加接口映射关系
 INTERFACE_MAPPING = {
     'v6_1': 'eth5',
-    'v6_2': 'eth1',
     'v6_3': 'eth3',
     'v6_4': 'eth2'
 }
@@ -390,7 +389,6 @@ def vpn(request):
 
 
 def generate_openwrt_commands(routes):
-    print(f'routes: {routes}')
     """生成OpenWrt命令"""
     commands = []
     processed_tables = set()
@@ -409,11 +407,17 @@ def generate_openwrt_commands(routes):
                 print(f"跳过路由: 接口 {route['出接口']} 未配置映射关系")
                 continue
             
-            # 如果是新的路由表，添加创建路由表的命令
+            # 如果是新的路由表，添加创建、清空和规则相关命令
             if table_name not in processed_tables:
                 commands.extend([
                     f"# 创建路由表 {table_name}",
                     f"cat /etc/iproute2/rt_tables | grep {table_name} || echo \"100 {table_name}\" >> /etc/iproute2/rt_tables",
+                    "",
+                    f"# 清空路由表 {table_name}",
+                    f"ip -6 route flush table {table_name}",
+                    "",
+                    f"# 删除与 {table_name} 相关的规则",
+                    f"ip -6 rule del from {source_network} iif {INTERFACE_MAPPING[route['入接口']]} lookup {table_name} prio 32764 2>/dev/null || true",
                     "",
                     f"# 添加规则到 {table_name}",
                     f"ip -6 rule add from {source_network} iif {INTERFACE_MAPPING[route['入接口']]} lookup {table_name} prio 32764",

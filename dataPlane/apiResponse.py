@@ -29,5 +29,6 @@ class UnifiedResponseMiddleware:
         new_response.status_code = response.status_code
         for header, value in response.items():
             new_response[header] = value
-        print(unified_response.get('data'))
+        # print("=== Debug Print ===")
+        # print(unified_response.get('data'))
         return new_response
