@@ -1,5 +1,7 @@
 import json
 import time
+import os
+import subprocess
 
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
@@ -388,10 +390,24 @@ def vpn(request):
     return HttpResponse("Hello, world. You're at the device vpn.")
 
 
-def generate_openwrt_commands(routes):
-    """生成OpenWrt命令"""
+def generate_and_execute_openwrt_commands(routes):
+    """生成OpenWrt命令并执行"""
     commands = []
     processed_tables = set()
+    
+    # 添加脚本头部
+    commands.extend([
+        "#!/bin/sh",
+        "",
+        "# 自动生成的路由配置脚本",
+        "",
+        "# 删除所有与 table_from 相关的规则",
+        "ip -6 rule show | grep 'table_from' | while read line; do",
+        "    rule_num=$(echo $line | cut -d ':' -f 1)",
+        "    ip -6 rule del prio $rule_num",
+        "done",
+        ""
+    ])
     
     for route in routes["根据路径转换后的路由表"]:
         try:
@@ -407,7 +423,7 @@ def generate_openwrt_commands(routes):
                 print(f"跳过路由: 接口 {route['出接口']} 未配置映射关系")
                 continue
             
-            # 如果是新的路由表，添加创建、清空和规则相关命令
+            # 如果是新的路由表，添加创建和清空命令
             if table_name not in processed_tables:
                 commands.extend([
                     f"# 创建路由表 {table_name}",
@@ -415,9 +431,6 @@ def generate_openwrt_commands(routes):
                     "",
                     f"# 清空路由表 {table_name}",
                     f"ip -6 route flush table {table_name}",
-                    "",
-                    f"# 删除与 {table_name} 相关的规则",
-                    f"ip -6 rule del from {source_network} iif {INTERFACE_MAPPING[route['入接口']]} lookup {table_name} prio 32764 2>/dev/null || true",
                     "",
                     f"# 添加规则到 {table_name}",
                     f"ip -6 rule add from {source_network} iif {INTERFACE_MAPPING[route['入接口']]} lookup {table_name} prio 32764",
@@ -439,7 +452,34 @@ def generate_openwrt_commands(routes):
             print(f"错误: 处理路由时发生未知错误: {e}")
             continue
     
-    return "\n".join(commands)
+    # 创建tmp目录并保存命令到脚本文件
+    try:
+        # 获取当前文件所在目录
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # 创建tmp目录
+        tmp_dir = os.path.join(current_dir, 'tmp')
+        if not os.path.exists(tmp_dir):
+            os.makedirs(tmp_dir)
+        
+        # 生成脚本文件路径
+        script_path = os.path.join(tmp_dir, 'route_config.sh')
+        
+        # 保存命令到脚本文件
+        with open(script_path, "w") as f:
+            f.write("\n".join(commands))
+        
+        # 设置脚本可执行权限
+        os.chmod(script_path, 0o755)
+        
+        # 执行脚本
+        result = subprocess.run([script_path], capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"脚本执行出错: {result.stderr}")
+        else:
+            print(f"路由配置脚本执行成功，脚本保存在: {script_path}")
+            
+    except Exception as e:
+        print(f"脚本处理错误: {str(e)}")
 
 def receiveRouteTable(request):
     try:
@@ -482,20 +522,20 @@ def receiveRouteTable(request):
         if print_timer:
             print_timer.cancel()
 
-        # 设置新的定时器，2秒后打印
+        # 设置新的定时器
         def delayed_print():
             if last_routes:
                 print("\n最终路由表内容:")
                 print(json.dumps(last_routes, ensure_ascii=False, indent=2))
-                print("\nOpenWrt命令:")
-                print(generate_openwrt_commands(last_routes))
+                # 生成并执行OpenWrt命令
+                generate_and_execute_openwrt_commands(last_routes)
 
         print_timer = Timer(1.5, delayed_print)
         print_timer.start()
 
         return JsonResponse({
             'code': 200,
-            'message': '路由表信息接收并打印成功'
+            'message': '路由表信息接收并配置成功'
         })
 
     except Exception as e:
